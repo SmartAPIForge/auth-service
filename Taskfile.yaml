@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  # task generate-auth
+  build:
+    aliases:
+      - gen
+    desc: "Build"
+    cmds:
+      - go build ./cmd/auth-service/main.go
+  run-dev:
+    aliases:
+      - gen
+    desc: "Run in dev"
+    cmds:
+      - CONFIG_PATH=./config/config-dev.yaml ./main
+  run-prod:
+    aliases:
+      - gen
+    desc: "Run in prod"
+    cmds:
+      - CONFIG_PATH=./config/config.yaml ./main
