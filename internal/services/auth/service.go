@@ -18,8 +18,6 @@ type Storage interface {
 	GetUser(ctx context.Context, email string) (models.User, error)
 }
 
-// impl
-
 type AuthService struct {
 	log      *slog.Logger
 	storage  Storage
@@ -28,12 +26,12 @@ type AuthService struct {
 
 func NewAuthService(
 	log *slog.Logger,
-	userRepo Storage,
+	storage Storage,
 	tokenTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
 		log:      log,
-		storage:  userRepo,
+		storage:  storage,
 		tokenTTL: tokenTTL,
 	}
 }

@@ -1,42 +1,84 @@
 package config
 
 import (
-	"github.com/ilyakaznacheev/cleanenv"
+	"fmt"
+	"github.com/joho/godotenv"
 	"os"
+	"strconv"
 	"time"
 )
 
 type Config struct {
-	Env            string     `yaml:"env" env-default:"dev"` // dev || prod
-	GRPC           GRPCConfig `yaml:"grpc"`
-	StoragePath    string     `yaml:"storage_path" env-required:"true"`
-	MigrationsPath string
-	AccessTokenTTL time.Duration `yaml:"access_token_ttl" env-default:"10m"`
+	Env            string // dev || prod
+	GRPC           GRPCConfig
+	PostgresURL    string
+	AccessTokenTTL time.Duration
 }
 
 type GRPCConfig struct {
-	Port    int           `yaml:"port"`
-	Timeout time.Duration `yaml:"timeout"`
+	Port    int
+	Timeout time.Duration
 }
 
 func MustLoad() *Config {
-	configPath := fetchConfigPath()
-	if configPath == "" {
-		panic("config path is empty")
-	}
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		panic("config file does not exist: " + configPath)
+	loadEnvFile()
+
+	env := getEnv("ENV", "dev")
+	grpcPort := getEnvAsInt("GRPC_PORT", 50051)
+	grpcTimeout := getEnvAsDuration("GRPC_TIMEOUT", 10*time.Second)
+	postgresURL := buildPostgresURL()
+	accessTokenTTL := getEnvAsDuration("ACCESS_TOKEN_TTL", 10*time.Minute)
+
+	if postgresURL == "" {
+		panic("postgresURL is required but not set")
 	}
 
-	var cfg Config
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		panic("config path is empty: " + err.Error())
+	return &Config{
+		Env: env,
+		GRPC: GRPCConfig{
+			Port:    grpcPort,
+			Timeout: grpcTimeout,
+		},
+		PostgresURL:    postgresURL,
+		AccessTokenTTL: accessTokenTTL,
 	}
-
-	return &cfg
 }
 
-func fetchConfigPath() string {
-	res := os.Getenv("CONFIG_PATH")
-	return res
+func loadEnvFile() {
+	if err := godotenv.Load(); err != nil {
+		panic("Error loading .env file")
+	}
+}
+
+func getEnv(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := getEnv(key, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
+	valueStr := getEnv(key, "")
+	if value, err := time.ParseDuration(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func buildPostgresURL() string {
+	user := getEnv("POSTGRES_USER", "postgres")
+	password := getEnv("POSTGRES_PASSWORD", "postgres")
+	db := getEnv("POSTGRES_DB", "main")
+	port := getEnv("POSTGRES_PORT", "5431")
+	host := getEnv("POSTGRES_HOST", "localhost")
+
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, db)
 }

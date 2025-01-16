@@ -24,8 +24,6 @@ type AuthService interface {
 	) (userID int64, err error)
 }
 
-// impl
-
 type AuthServer struct {
 	authProto.UnimplementedAuthServer
 	authService AuthService
@@ -71,7 +69,6 @@ func (s *AuthServer) Register(
 
 	uid, err := s.authService.Register(ctx, in.GetEmail(), in.GetPassword())
 	if err != nil {
-		// Ошибку storage.ErrUserExists мы создадим ниже
 		if errors.Is(err, storage.ErrUserExists) {
 			return nil, status.Error(codes.AlreadyExists, "user already exists")
 		}

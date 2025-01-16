@@ -14,7 +14,7 @@ func main() {
 
 	log := logger.MustSetupLogger(cfg.Env)
 
-	application := app.NewApp(log, cfg.GRPC.Port, cfg.StoragePath, cfg.AccessTokenTTL)
+	application := app.NewApp(log, cfg.GRPC.Port, cfg.PostgresURL, cfg.AccessTokenTTL)
 	application.GrpcApp.MustRun()
 
 	stopWait(application)

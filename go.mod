@@ -8,7 +8,8 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/mattn/go-sqlite3 v1.14.17
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.26.0
 	google.golang.org/grpc v1.67.1
 )
