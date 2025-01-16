@@ -1,0 +1,13 @@
+version: "3"
+
+tasks:
+  build:
+    desc: "Build"
+    cmds:
+      - go build ./cmd/auth-service/main.go
+  run:
+    desc: "Build & Run"
+    deps:
+      - build
+    cmds:
+      - ./main
