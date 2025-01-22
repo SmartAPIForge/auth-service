@@ -1,13 +1,42 @@
 version: "3"
 
 tasks:
-  build:
-    desc: "Build"
-    cmds:
-      - go build ./cmd/auth-service/main.go
   run:
     desc: "Build & Run"
     deps:
       - build
     cmds:
       - ./main
+
+  build:
+    desc: "Build"
+    cmds:
+      - go build ./cmd/auth-service/main.go
+
+  db_raise:
+    desc: "Raise database in container"
+    cmds:
+      - docker compose up -d
+
+  db_migrate:
+    desc: "Run migrations"
+    cmds:
+      - go run ./cmd/migrator --dsn="postgres://postgres:postgres@localhost:5431/main?sslmode=disable" --migrations-path=./migrations
+
+  db_seed:
+    desc: "Seed required data"
+    cmds:
+      - go run ./cmd/seed --dsn="postgres://postgres:postgres@localhost:5431/main?sslmode=disable"
+
+  init:
+    desc: "Init"
+    cmds:
+      - go mod tidy
+      - task sequential_deps
+
+  sequential_deps:
+    cmds:
+      - task db_raise
+      - task db_migrate
+      - task db_seed
+      - task run

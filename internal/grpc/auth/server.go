@@ -1,6 +1,7 @@
 package authserver
 
 import (
+	"auth-service/internal/lib/jwt"
 	authservice "auth-service/internal/services/auth"
 	"auth-service/internal/storage"
 	"context"
@@ -12,16 +13,20 @@ import (
 )
 
 type AuthService interface {
-	Login(
-		ctx context.Context,
-		email string,
-		password string,
-	) (token string, err error)
 	Register(
 		ctx context.Context,
 		email string,
 		password string,
 	) (userID int64, err error)
+	Login(
+		ctx context.Context,
+		email string,
+		password string,
+	) (accessToken string, refreshToken string, err error)
+	Refresh(
+		ctx context.Context,
+		refreshToken string,
+	) (string, string, error)
 }
 
 type AuthServer struct {
@@ -29,31 +34,11 @@ type AuthServer struct {
 	authService AuthService
 }
 
-func RegisterAuthServer(gRPCServer *grpc.Server, auth AuthService) {
+func RegisterAuthServer(
+	gRPCServer *grpc.Server,
+	auth AuthService,
+) {
 	authProto.RegisterAuthServer(gRPCServer, &AuthServer{authService: auth})
-}
-
-func (s *AuthServer) Login(
-	ctx context.Context,
-	in *authProto.LoginRequest,
-) (*authProto.LoginResponse, error) {
-	if in.Email == "" {
-		return nil, status.Error(codes.InvalidArgument, "email is required")
-	}
-	if in.Password == "" {
-		return nil, status.Error(codes.InvalidArgument, "password is required")
-	}
-
-	token, err := s.authService.Login(ctx, in.GetEmail(), in.GetPassword())
-	if err != nil {
-		if errors.Is(err, authservice.ErrInvalidCredentials) {
-			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
-		}
-
-		return nil, status.Error(codes.Internal, "failed to login")
-	}
-
-	return &authProto.LoginResponse{Token: token}, nil
 }
 
 func (s *AuthServer) Register(
@@ -77,4 +62,70 @@ func (s *AuthServer) Register(
 	}
 
 	return &authProto.RegisterResponse{UserId: uid}, nil
+}
+
+func (s *AuthServer) Login(
+	ctx context.Context,
+	in *authProto.LoginRequest,
+) (*authProto.LoginResponse, error) {
+	if in.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	if in.Password == "" {
+		return nil, status.Error(codes.InvalidArgument, "password is required")
+	}
+
+	accessToken, refreshToken, err := s.authService.Login(ctx, in.GetEmail(), in.GetPassword())
+	if err != nil {
+		if errors.Is(err, authservice.ErrInvalidCredentials) {
+			return nil, status.Error(codes.InvalidArgument, "invalid email or password")
+		}
+
+		return nil, status.Error(codes.Internal, "failed to login")
+	}
+
+	return &authProto.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *AuthServer) ValidateUser(
+	_ context.Context,
+	in *authProto.ValidateUserRequest,
+) (*authProto.ValidateUserResponse, error) {
+	response := &authProto.ValidateUserResponse{Valid: false}
+	if in.AccessToken == "" {
+		return response, nil
+	}
+
+	payload, err := jwt.ParseToken(in.AccessToken)
+	if err != nil {
+		return response, nil
+	}
+	if !(payload.Role == in.RequiredRole) {
+		return response, nil
+	}
+
+	response.Valid = true
+	return response, nil
+}
+
+func (s *AuthServer) Refresh(
+	ctx context.Context,
+	in *authProto.RefreshRequest,
+) (*authProto.RefreshResponse, error) {
+	if in.RefreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "token missed")
+	}
+
+	accessToken, refreshToken, err := s.authService.Refresh(ctx, in.RefreshToken)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to refresh")
+	}
+
+	return &authProto.RefreshResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
