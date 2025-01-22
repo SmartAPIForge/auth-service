@@ -96,15 +96,15 @@ func (s *AuthServer) ValidateUser(
 ) (*authProto.ValidateUserResponse, error) {
 	response := &authProto.ValidateUserResponse{Valid: false}
 	if in.AccessToken == "" {
-		return response, status.Error(codes.InvalidArgument, "token missed")
+		return response, nil
 	}
 
 	payload, err := jwt.ParseToken(in.AccessToken)
 	if err != nil {
-		return response, status.Error(codes.Unauthenticated, "user unauthorized")
+		return response, nil
 	}
 	if !(payload.Role == in.RequiredRole) {
-		return response, status.Error(codes.PermissionDenied, "role mismatch")
+		return response, nil
 	}
 
 	response.Valid = true

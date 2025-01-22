@@ -49,7 +49,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 func (s *Storage) GetUser(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.postgres.GetUser"
 
-	query := `SELECT id, email, password FROM users WHERE email = $1`
+	query := `SELECT id, email, password, role_id FROM users WHERE email = $1`
 
 	var user models.User
 	err := s.db.GetContext(ctx, &user, query, email)

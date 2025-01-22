@@ -3,7 +3,7 @@ module auth-service
 go 1.23.0
 
 require (
-	github.com/SmartAPIForge/protos v0.0.8
+	github.com/SmartAPIForge/protos v1.0.1
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0
