@@ -19,20 +19,27 @@ type Storage interface {
 }
 
 type AuthService struct {
-	log      *slog.Logger
-	storage  Storage
-	tokenTTL time.Duration
+	log             *slog.Logger
+	storage         Storage
+	accessTokenTTL  time.Duration
+	refreshTokenTTL time.Duration
 }
+
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)
 
 func NewAuthService(
 	log *slog.Logger,
 	storage Storage,
-	tokenTTL time.Duration,
+	accessTokenTTL time.Duration,
+	refreshTokenTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		log:      log,
-		storage:  storage,
-		tokenTTL: tokenTTL,
+		log:             log,
+		storage:         storage,
+		accessTokenTTL:  accessTokenTTL,
+		refreshTokenTTL: refreshTokenTTL,
 	}
 }
 
@@ -43,8 +50,6 @@ func (a *AuthService) Register(ctx context.Context, email string, password strin
 		slog.String("op", op),
 		slog.String("email", email),
 	)
-
-	log.Info("registering user")
 
 	passHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -61,15 +66,11 @@ func (a *AuthService) Register(ctx context.Context, email string, password strin
 	return id, nil
 }
 
-var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-)
-
 func (a *AuthService) Login(
 	ctx context.Context,
 	email string,
 	password string,
-) (string, error) {
+) (string, string, error) {
 	const op = "auth.Login"
 
 	log := a.log.With(
@@ -77,33 +78,67 @@ func (a *AuthService) Login(
 		slog.String("email", email),
 	)
 
-	log.Info("attempting to login user")
-
 	user, err := a.storage.GetUser(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			a.log.Warn("user not found", sl.Err(err))
-			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+			log.Error("user not found", sl.Err(err))
+			return "", "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
-
-		a.log.Error("failed to get user", sl.Err(err))
-		return "", fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to get user", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(password)); err != nil {
-		a.log.Info("invalid credentials", sl.Err(err))
-
-		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
+		log.Error("invalid credentials", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
-	log.Info("user logged in successfully")
-
-	accessToken, err := jwt.NewAccessToken(user, a.tokenTTL)
+	accessToken, err := jwt.NewToken(user, a.accessTokenTTL, "access")
+	refreshToken, err := jwt.NewToken(user, a.refreshTokenTTL, "refresh")
 	if err != nil {
-		a.log.Error("failed to generate token", sl.Err(err))
-
-		return "", fmt.Errorf("%s: %w", op, err)
+		log.Error("failed to generate token", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return accessToken, nil
+	return accessToken, refreshToken, nil
+}
+
+func (a *AuthService) Refresh(
+	ctx context.Context,
+	refreshToken string,
+) (string, string, error) {
+	const op = "auth.Login"
+
+	log := a.log.With(slog.String("op", op))
+
+	refreshPayload, err := jwt.ParseToken(refreshToken)
+	if err != nil {
+		log.Error("failed to parse token", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	if time.Now().Unix() > refreshPayload.Exp {
+		log.Error("token expired", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	user, err := a.storage.GetUser(ctx, refreshPayload.Email)
+	if err != nil {
+		log.Error("user not found", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	newAccessToken, err := jwt.NewToken(user, a.accessTokenTTL, "access")
+	if err != nil {
+		log.Error("can not gen new access token", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	newRefreshToken, err := jwt.NewToken(user, a.refreshTokenTTL, "refresh")
+	if err != nil {
+		log.Error("can not gen new refresh token", sl.Err(err))
+		return "", "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return newAccessToken, newRefreshToken, nil
 }

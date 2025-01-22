@@ -16,16 +16,15 @@ func NewApp(
 	log *slog.Logger,
 	grpcPort int,
 	postgresURL string,
-	tokenTTL time.Duration,
+	accessTokenTTL time.Duration,
+	refreshTokenTTL time.Duration,
 ) *App {
 	storage, err := postgres.NewStorage(postgresURL)
 	if err != nil {
 		panic(err)
 	}
 
-	authService := authservice.NewAuthService(log, storage, tokenTTL)
-	// tokenService
-	// userService
+	authService := authservice.NewAuthService(log, storage, accessTokenTTL, refreshTokenTTL)
 
 	grpcApp := grpcapp.NewGrpcApp(
 		log,

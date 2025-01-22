@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Env            string // dev || prod
-	GRPC           GRPCConfig
-	PostgresURL    string
-	AccessTokenTTL time.Duration
+	Env             string // dev || prod
+	GRPC            GRPCConfig
+	PostgresURL     string
+	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
 }
 
 type GRPCConfig struct {
@@ -27,7 +28,8 @@ func MustLoad() *Config {
 	grpcPort := getEnvAsInt("GRPC_PORT", 50051)
 	grpcTimeout := getEnvAsDuration("GRPC_TIMEOUT", 10*time.Second)
 	postgresURL := buildPostgresURL()
-	accessTokenTTL := getEnvAsDuration("ACCESS_TOKEN_TTL", 10*time.Minute)
+	accessTokenTTL := getEnvAsDuration("ACCESS_TOKEN_TTL", 30*time.Minute)
+	refreshTokenTTL := getEnvAsDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour)
 
 	if postgresURL == "" {
 		panic("postgresURL is required but not set")
@@ -39,8 +41,9 @@ func MustLoad() *Config {
 			Port:    grpcPort,
 			Timeout: grpcTimeout,
 		},
-		PostgresURL:    postgresURL,
-		AccessTokenTTL: accessTokenTTL,
+		PostgresURL:     postgresURL,
+		AccessTokenTTL:  accessTokenTTL,
+		RefreshTokenTTL: refreshTokenTTL,
 	}
 }
 
