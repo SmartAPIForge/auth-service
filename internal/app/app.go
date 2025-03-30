@@ -3,6 +3,7 @@ package app
 import (
 	grpcapp "auth-service/internal/app/grpc"
 	authservice "auth-service/internal/services/auth"
+	userservice "auth-service/internal/services/user"
 	"auth-service/internal/storage/postgres"
 	"log/slog"
 	"time"
@@ -25,10 +26,12 @@ func NewApp(
 	}
 
 	authService := authservice.NewAuthService(log, storage, accessTokenTTL, refreshTokenTTL)
+	userService := userservice.NewUserService(log, storage)
 
 	grpcApp := grpcapp.NewGrpcApp(
 		log,
 		authService,
+		userService,
 		grpcPort,
 	)
 

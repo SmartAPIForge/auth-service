@@ -25,7 +25,6 @@ func main() {
 		panic("migrations-path is required")
 	}
 
-	// Добавляем таблицу для хранения миграций
 	dsnWithTable := fmt.Sprintf("%s&x-migrations-table=%s", dsn, migrationsTable)
 
 	m, err := migrate.New(
