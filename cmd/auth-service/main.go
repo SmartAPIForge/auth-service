@@ -20,6 +20,8 @@ func main() {
 		cfg.PostgresURL,
 		cfg.AccessTokenTTL,
 		cfg.RefreshTokenTTL,
+		cfg.SchemaRegistryUrl,
+		cfg.KafkaHost,
 	)
 	application.GrpcApp.MustRun()
 

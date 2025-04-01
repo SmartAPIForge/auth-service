@@ -29,26 +29,26 @@ func NewStorage(connString string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
+func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, string, error) {
 	const op = "storage.postgres.SaveUser"
 
 	query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id`
 
 	username, err := s.generateUniqueUsername()
 	if err != nil {
-		return 0, fmt.Errorf("internal error, try later")
+		return 0, "", fmt.Errorf("internal error, try later")
 	}
 	var id int64
 	err = s.db.QueryRowContext(ctx, query, username, email, passHash).Scan(&id)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return 0, fmt.Errorf("%s: %w", op, storage.ErrUserExists)
+			return 0, "", fmt.Errorf("%s: %w", op, storage.ErrUserExists)
 		}
-		return 0, fmt.Errorf("%s: %w", op, err)
+		return 0, "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	return id, nil
+	return id, username, nil
 }
 
 func (s *Storage) GetUser(ctx context.Context, email string) (models.User, error) {

@@ -9,11 +9,13 @@ import (
 )
 
 type Config struct {
-	Env             string // dev || prod
-	GRPC            GRPCConfig
-	PostgresURL     string
-	AccessTokenTTL  time.Duration
-	RefreshTokenTTL time.Duration
+	Env               string // dev || prod
+	GRPC              GRPCConfig
+	PostgresURL       string
+	AccessTokenTTL    time.Duration
+	RefreshTokenTTL   time.Duration
+	SchemaRegistryUrl string
+	KafkaHost         string
 }
 
 type GRPCConfig struct {
@@ -30,6 +32,8 @@ func MustLoad() *Config {
 	postgresURL := buildPostgresURL()
 	accessTokenTTL := getEnvAsDuration("ACCESS_TOKEN_TTL", 30*time.Minute)
 	refreshTokenTTL := getEnvAsDuration("REFRESH_TOKEN_TTL", 30*24*time.Hour)
+	schemaRegistryUrl := getEnv("SCHEMA_REGISTRY_URL", "http://localhost:6767")
+	kafkaHost := getEnv("KAFKA_HOST", "http://localhost:9092")
 
 	if postgresURL == "" {
 		panic("postgresURL is required but not set")
@@ -41,9 +45,11 @@ func MustLoad() *Config {
 			Port:    grpcPort,
 			Timeout: grpcTimeout,
 		},
-		PostgresURL:     postgresURL,
-		AccessTokenTTL:  accessTokenTTL,
-		RefreshTokenTTL: refreshTokenTTL,
+		PostgresURL:       postgresURL,
+		AccessTokenTTL:    accessTokenTTL,
+		RefreshTokenTTL:   refreshTokenTTL,
+		SchemaRegistryUrl: schemaRegistryUrl,
+		KafkaHost:         kafkaHost,
 	}
 }
 

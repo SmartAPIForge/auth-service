@@ -2,6 +2,7 @@ package authservice
 
 import (
 	"auth-service/internal/domain/models"
+	"auth-service/internal/kafka"
 	"auth-service/internal/lib/jwt"
 	"auth-service/internal/lib/sl"
 	"auth-service/internal/storage"
@@ -14,7 +15,7 @@ import (
 )
 
 type Storage interface {
-	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, err error)
+	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, username string, err error)
 	GetUser(ctx context.Context, email string) (models.User, error)
 }
 
@@ -23,6 +24,7 @@ type AuthService struct {
 	storage         Storage
 	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
+	kafkaProducer   *kafka.KafkaProducer
 }
 
 var (
@@ -34,12 +36,14 @@ func NewAuthService(
 	storage Storage,
 	accessTokenTTL time.Duration,
 	refreshTokenTTL time.Duration,
+	kafkaProducer *kafka.KafkaProducer,
 ) *AuthService {
 	return &AuthService{
 		log:             log,
 		storage:         storage,
 		accessTokenTTL:  accessTokenTTL,
 		refreshTokenTTL: refreshTokenTTL,
+		kafkaProducer:   kafkaProducer,
 	}
 }
 
@@ -57,10 +61,19 @@ func (a *AuthService) Register(ctx context.Context, email string, password strin
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	id, err := a.storage.SaveUser(ctx, email, passHash)
+	id, username, err := a.storage.SaveUser(ctx, email, passHash)
 	if err != nil {
 		log.Error("failed to save user", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	nativeNewUser := map[string]interface{}{
+		"username": username,
+		"email":    email,
+	}
+	err = a.kafkaProducer.ProduceNewUser(email, nativeNewUser)
+	if err != nil {
+		return 0, err
 	}
 
 	return id, nil
