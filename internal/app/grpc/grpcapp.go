@@ -20,7 +20,12 @@ type GrpcApp struct {
 	port       int
 }
 
-func NewGrpcApp(log *slog.Logger, authService authserver.AuthService, port int) *GrpcApp {
+func NewGrpcApp(
+	log *slog.Logger,
+	authService authserver.AuthService,
+	userService authserver.UserService,
+	port int,
+) *GrpcApp {
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(
 			logging.PayloadReceived, logging.PayloadSent,
@@ -37,7 +42,7 @@ func NewGrpcApp(log *slog.Logger, authService authserver.AuthService, port int) 
 		logging.UnaryServerInterceptor(interceptorlogger.InterceptorLogger(log), loggingOpts...),
 	))
 
-	authserver.RegisterAuthServer(gRPCServer, authService)
+	authserver.RegisterAuthServer(gRPCServer, authService, userService)
 
 	return &GrpcApp{
 		log:        log,
