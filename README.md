@@ -1,6 +1,8 @@
 # auth-service
 
 This service provides sso functionality in SmartAPIForge backend system
+User management
+Auth methods
 
 ### Get prepared:
 
